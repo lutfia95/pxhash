@@ -68,8 +68,6 @@ Load Average: 2.89, 1.57, 1.17
 Benchmark                          Time             CPU   Iterations
 --------------------------------------------------------------------
 BM_PXHash_Insert/1000000    62882366 ns     62880940 ns           10
-[PXHASH] Resizing from 1048576 to 2097152
-[PXHASH] Resizing from 1048576 to 2097152
 BM_PXHash_Find/1000000     111489330 ns    111456308 ns            6
 BM_StdMap_Insert/1000000   348376680 ns    348367021 ns            2
 BM_StdMap_Find/1000000      29548402 ns     29454086 ns           26
