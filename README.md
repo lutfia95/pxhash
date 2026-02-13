@@ -14,6 +14,7 @@ sudo apt-get install -y libbenchmark-dev
 
 # Abseil C++ (flat_hash_map)
 sudo apt-get install -y libabsl-dev
+sudo apt install -y libfast-float-dev
 
 # Folly (Facebook's library)
 sudo apt-get install -y libdouble-conversion-dev libboost-all-dev \
