@@ -1,10 +1,5 @@
-# PXHash (Work in Progress)
+# PXHash
 High-Performance Concurrent Hash Table
-It is designed to compete with:
-
-- `std::unordered_map`
-- `absl::flat_hash_map`
-- `folly::F14FastMap`
 
 # Requirements
 
