@@ -12,7 +12,7 @@
 namespace pxhash {
 
 // SwissTable-style control bytes
-static constexpr uint8_t EMPTY   = 0x80; // high bit set
+static constexpr uint8_t EMPTY   = 0x80;
 static constexpr uint8_t DELETED = 0xFE;
 
 #if defined(__AVX2__)
@@ -39,6 +39,7 @@ static inline size_t nextPowerOfTwo(size_t n) {
 
 static inline uint8_t h2_from_hash(size_t h) {
   // 7-bit fingerprint from top bits
+  // might cause segmentation fault in higher level cases! 
   return static_cast<uint8_t>((h >> (sizeof(size_t) * 8 - 7)) & 0x7F);
 }
 
@@ -53,6 +54,7 @@ template <typename KeyType, typename ValueType, typename Hash = std::hash<KeyTyp
 class PXHash {
 public:
   explicit PXHash(size_t initial_capacity = 0) : hasher_(), eq_() {
+    //std::cout << "[DEV] Reserving: " << initial_capacity << std::endl;
     if (initial_capacity) reserve(initial_capacity);
   }
 
@@ -70,6 +72,7 @@ public:
     size_t need = (n * 8) / 7 + 1;
     size_t cap = nextPowerOfTwo(need);
     if (cap < minCapacity()) cap = minCapacity();
+    //std::cout << "[DEV] cap: " << cap << std::endl;
     cap = alignUp(cap, GROUP_SIZE);
     if (cap <= capacity_) return;
     rehash(cap);
@@ -155,6 +158,7 @@ private:
   size_t deleted_{0};
 
   // ctrl_ has capacity_ + GROUP_SIZE bytes (tail mirrors first GROUP_SIZE)
+  // using uint8_t for ctrl_ is error-prone! 
   std::vector<uint8_t> ctrl_;
   std::vector<Slot<KeyType, ValueType>> slots_;
 
