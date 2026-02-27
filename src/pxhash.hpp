@@ -11,7 +11,10 @@
 
 namespace pxhash {
 
-// SwissTable-style control bytes
+/*!\brief SwissTable-style control bytes (per-slot metadata).
+ *
+ * Control bytes encode EMPTY/DELETED sentinels or the 7-bit hash fingerprint.
+ */
 static constexpr uint8_t EMPTY   = 0x80;
 static constexpr uint8_t DELETED = 0xFE;
 
@@ -21,8 +24,19 @@ static constexpr size_t GROUP_SIZE = 32;
 static constexpr size_t GROUP_SIZE = 16;
 #endif
 
+/*!\brief Align n up to the next multiple of a.
+ *
+ * \param n The value to align.
+ * \param a The alignment (must be a power of two).
+ * \return The smallest multiple of \p a that is >= \p n.
+ */
 static inline size_t alignUp(size_t n, size_t a) { return (n + (a - 1)) & ~(a - 1); }
 
+/*!\brief Compute the next power of two.
+ *
+ * \param n Input value.
+ * \return Smallest power of two >= \p n (returns 1 for n <= 1).
+ */
 static inline size_t nextPowerOfTwo(size_t n) {
   if (n <= 1) return 1;
   n--;
@@ -37,12 +51,15 @@ static inline size_t nextPowerOfTwo(size_t n) {
   return n + 1;
 }
 
+/*!\brief Extract a 7-bit fingerprint from the hash.
+ *
+ * The fingerprint is stored in control bytes for SIMD-accelerated filtering.
+ */
 static inline uint8_t h2_from_hash(size_t h) {
-  // 7-bit fingerprint from top bits
-  // might cause segmentation fault in higher level cases! 
   return static_cast<uint8_t>((h >> (sizeof(size_t) * 8 - 7)) & 0x7F);
 }
 
+/*!\brief Simple key/value storage slot. */
 template <class K, class V>
 struct Slot {
   K key;
@@ -51,6 +68,11 @@ struct Slot {
 
 template <typename KeyType, typename ValueType, typename Hash = std::hash<KeyType>,
           typename Eq = std::equal_to<KeyType>>
+/*!\brief Compact open-addressing hash table inspired by SwissTable.
+ *
+ * Control bytes store EMPTY/DELETED or a 7-bit hash fingerprint.
+ * Probing scans GROUP_SIZE control bytes at a time using SIMD.
+ */
 class PXHash {
 public:
   explicit PXHash(size_t initial_capacity = 0) : hasher_(), eq_() {
@@ -67,8 +89,9 @@ public:
   size_t size() const noexcept { return size_; }
   bool empty() const noexcept { return size_ == 0; }
 
+  /*!\brief Reserve space for at least \p n elements. */
   void reserve(size_t n) {
-    // target max load ~ 7/8
+    // Target max load ~ 7/8.
     size_t need = (n * 8) / 7 + 1;
     size_t cap = nextPowerOfTwo(need);
     if (cap < minCapacity()) cap = minCapacity();
@@ -88,6 +111,9 @@ public:
     insertOrAssignImpl(std::move(key), std::move(value));
   }
 
+  /*!\brief Find a key and return its value via \p out_value.
+   * \return True if the key is found, false otherwise.
+   */
   bool find(const KeyType& key, ValueType& out_value) const {
     if (capacity_ == 0) return false;
 
@@ -115,6 +141,9 @@ public:
     }
   }
 
+  /*!\brief Erase a key from the table.
+   * \return True if the key was erased, false otherwise.
+   */
   bool erase(const KeyType& key) {
     if (capacity_ == 0) return false;
 
@@ -157,8 +186,11 @@ private:
   size_t size_{0};
   size_t deleted_{0};
 
-  // ctrl_ has capacity_ + GROUP_SIZE bytes (tail mirrors first GROUP_SIZE)
-  // using uint8_t for ctrl_ is error-prone! 
+  /*!\brief Control bytes for the hash table.
+   *
+   * The array has capacity_ + GROUP_SIZE bytes so the tail mirrors the first
+   * GROUP_SIZE entries, allowing seamless SIMD loads at the end.
+   */
   std::vector<uint8_t> ctrl_;
   std::vector<Slot<KeyType, ValueType>> slots_;
 
@@ -172,11 +204,13 @@ private:
 #endif
   }
 
+  /*!\brief Set a control byte and keep the tail mirror in sync. */
   inline void setCtrl(size_t pos, uint8_t v) noexcept {
     ctrl_[pos] = v;
     if (pos < GROUP_SIZE) ctrl_[pos + capacity_] = v; // mirror
   }
 
+  /*!\brief Initialize the table for a given capacity. */
   void initTable(size_t cap) {
     capacity_ = cap;
     mask_ = cap - 1;
@@ -188,6 +222,7 @@ private:
     for (size_t i = 0; i < GROUP_SIZE; ++i) ctrl_[capacity_ + i] = ctrl_[i];
   }
 
+  /*!\brief Rebuild the table to \p newCap capacity. */
   void rehash(size_t newCap) {
     PXHash tmp;
     tmp.initTable(newCap);
@@ -203,6 +238,7 @@ private:
     *this = std::move(tmp);
   }
 
+  /*!\brief Grow or clean up the table before insert when load is high. */
   void maybeGrowForInsert() {
     if (capacity_ == 0) {
       initTable(minCapacity());
@@ -215,6 +251,7 @@ private:
     }
   }
 
+  /*!\brief Return a bitmask of slots in the group matching \p h2. */
   static inline uint32_t matchH2Mask(const uint8_t* base, uint8_t h2) {
 #if defined(__AVX2__)
     __m256i v = _mm256_loadu_si256((const __m256i*)base);
@@ -229,6 +266,7 @@ private:
 #endif
   }
 
+  /*!\brief Return a bitmask of EMPTY slots in the group. */
   static inline uint32_t emptyMask(const uint8_t* base) {
 #if defined(__AVX2__)
     __m256i v = _mm256_loadu_si256((const __m256i*)base);
@@ -244,6 +282,7 @@ private:
   }
 
   template <class KArg, class VArg>
+  /*!\brief Insert or update in-place; assumes capacity is sufficient. */
   void insertOrAssignImpl(KArg&& key, VArg&& value) {
     size_t h = hasher_(key);
     uint8_t h2 = h2_from_hash(h);
