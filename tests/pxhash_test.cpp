@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cstddef>
+#include <cstdio>
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -123,6 +124,39 @@ void test_move_insert_support() {
   assert(out == "payload");
 }
 
+void test_binary_roundtrip_for_trivial_types() {
+  const char* path = "pxhash_roundtrip.bin";
+
+  pxhash::PXHash<std::uint64_t, std::uint64_t> original;
+  for (std::uint64_t i = 0; i < 128; ++i) {
+    original.insert(i + 10, i * 100);
+  }
+
+  assert(original.saveBinary(path));
+
+  pxhash::PXHash<std::uint64_t, std::uint64_t> restored;
+  restored.insert(999, 111);
+  assert(restored.loadBinary(path));
+  assert(restored.size() == original.size());
+
+  std::uint64_t value = 0;
+  for (std::uint64_t i = 0; i < 128; ++i) {
+    assert(restored.find(i + 10, value));
+    assert(value == i * 100);
+  }
+  assert(!restored.find(999, value));
+
+  std::remove(path);
+}
+
+void test_binary_serialization_rejects_non_trivial_types() {
+  pxhash::PXHash<std::string, std::string> map;
+  map.insert("alpha", "beta");
+
+  assert(!map.saveBinary("pxhash_strings.bin"));
+  assert(!map.loadBinary("pxhash_strings.bin"));
+}
+
 }  // namespace
 
 int main() {
@@ -131,5 +165,7 @@ int main() {
   test_growth_preserves_values();
   test_collision_heavy_workload();
   test_move_insert_support();
+  test_binary_roundtrip_for_trivial_types();
+  test_binary_serialization_rejects_non_trivial_types();
   return 0;
 }

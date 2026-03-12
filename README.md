@@ -111,6 +111,32 @@ int main() {
 
 ```
 
+## Binary Persistence
+
+`PXHash` can save to and load from a compact binary file when both `KeyType` and `ValueType` are trivially copyable, for example `uint64_t`, POD structs, or fixed-size IDs.
+
+```cpp
+#include <cstdint>
+#include "pxhash.hpp"
+
+int main() {
+    pxhash::PXHash<std::uint64_t, std::uint64_t> map;
+    map.insert(10, 100);
+    map.insert(20, 200);
+
+    map.saveBinary("table.pxh");
+
+    pxhash::PXHash<std::uint64_t, std::uint64_t> restored;
+    restored.loadBinary("table.pxh");
+}
+```
+
+Notes:
+
+- The binary format is a small PXHash-specific header plus raw key/value records.
+- This path intentionally rejects non-trivially-copyable types such as `std::string`.
+- The file is intended for use on compatible builds and architectures; it is not a cross-platform interchange format.
+
 ```bash
 
             ░▒▓███████▓▒░  ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░  ░▒▓██████▓▒░   ░▒▓███████▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ 

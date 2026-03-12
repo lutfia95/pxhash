@@ -3,7 +3,10 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 #include <functional>
+#include <ios>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -78,6 +81,9 @@ template <typename KeyType, typename ValueType, typename Hash = std::hash<KeyTyp
  */
 class PXHash {
 public:
+  static constexpr std::uint32_t kBinaryMagic = 0x50584842u; // "PXHB"
+  static constexpr std::uint16_t kBinaryVersion = 1;
+
   explicit PXHash(size_t initial_capacity = 0) : hasher_(), eq_() {
     //std::cout << "[DEV] Reserving: " << initial_capacity << std::endl;
     if (initial_capacity) reserve(initial_capacity);
@@ -91,6 +97,72 @@ public:
 
   size_t size() const noexcept { return size_; }
   bool empty() const noexcept { return size_ == 0; }
+
+  bool saveBinary(const std::string_view path) const {
+    if constexpr (!isBinarySerializable()) {
+      return false;
+    } else {
+      std::ofstream out(std::string(path), std::ios::binary | std::ios::trunc);
+      if (!out) return false;
+
+      if (!writeExact(out, kBinaryMagic)) return false;
+      if (!writeExact(out, kBinaryVersion)) return false;
+
+      const std::uint16_t reserved = 0;
+      if (!writeExact(out, reserved)) return false;
+
+      const std::uint64_t entry_count = static_cast<std::uint64_t>(size_);
+      if (!writeExact(out, entry_count)) return false;
+
+      for (size_t i = 0; i < capacity_; ++i) {
+        const uint8_t c = ctrl_[i];
+        if (c == EMPTY || c == DELETED) continue;
+        if (!writeExact(out, slots_[i].key)) return false;
+        if (!writeExact(out, slots_[i].value)) return false;
+      }
+
+      return out.good();
+    }
+  }
+
+  bool loadBinary(const std::string_view path) {
+    if constexpr (!isBinarySerializable()) {
+      return false;
+    } else {
+      std::ifstream in(std::string(path), std::ios::binary);
+      if (!in) return false;
+
+      std::uint32_t magic = 0;
+      std::uint16_t version = 0;
+      std::uint16_t reserved = 0;
+      std::uint64_t entry_count = 0;
+
+      if (!readExact(in, magic)) return false;
+      if (!readExact(in, version)) return false;
+      if (!readExact(in, reserved)) return false;
+      if (!readExact(in, entry_count)) return false;
+
+      if (magic != kBinaryMagic || version != kBinaryVersion || reserved != 0) return false;
+
+      PXHash tmp;
+      tmp.reserve(static_cast<size_t>(entry_count));
+
+      for (std::uint64_t i = 0; i < entry_count; ++i) {
+        KeyType key{};
+        ValueType value{};
+        if (!readExact(in, key)) return false;
+        if (!readExact(in, value)) return false;
+        tmp.insert(std::move(key), std::move(value));
+      }
+
+      char trailing = 0;
+      if (in.read(&trailing, 1)) return false;
+      if (!in.eof()) return false;
+
+      *this = std::move(tmp);
+      return true;
+    }
+  }
 
   /*!\brief Reserve space for at least \p n elements. */
   void reserve(size_t n) {
@@ -181,6 +253,10 @@ private:
   static constexpr size_t kNumer = 7;
   static constexpr size_t kDenom = 8;
 
+  static constexpr bool isBinarySerializable() {
+    return std::is_trivially_copyable_v<KeyType> && std::is_trivially_copyable_v<ValueType>;
+  }
+
   Hash hasher_;
   Eq eq_;
 
@@ -196,6 +272,20 @@ private:
    */
   std::vector<uint8_t> ctrl_;
   std::vector<Slot<KeyType, ValueType>> slots_;
+
+  template <typename T>
+  static bool writeExact(std::ostream& out, const T& value) {
+    static_assert(std::is_trivially_copyable_v<T>, "binary writes require trivially copyable types");
+    out.write(reinterpret_cast<const char*>(&value), sizeof(T));
+    return static_cast<bool>(out);
+  }
+
+  template <typename T>
+  static bool readExact(std::istream& in, T& value) {
+    static_assert(std::is_trivially_copyable_v<T>, "binary reads require trivially copyable types");
+    in.read(reinterpret_cast<char*>(&value), sizeof(T));
+    return static_cast<bool>(in);
+  }
 
   static inline unsigned ctz(uint32_t x) {
 #if defined(_MSC_VER)
