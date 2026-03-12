@@ -13,35 +13,88 @@ High-Performance Concurrent Hash Table
 
 - Google Benchmark
 - Abseil
-- Folly
 
 # Installation
 
 ## Ubuntu / Debian
 ### Core toolchain
 
-```
+```bash
 sudo apt update
-sudo apt install -y build-essential cmake pkg-config
+sudo apt install -y build-essential cmake pkg-config ctest
 sudo apt install -y libbenchmark-dev
 sudo apt install -y libabsl-dev
+```
 
+## macOS / Homebrew
+
+```bash
+brew install cmake google-benchmark abseil
 ```
 
 # Build
-```
+
+## Configure and build everything available
+
+```bash
 git clone https://github.com/lutfia95/pxhash.git
 cd pxhash
-mkdir build
-cd build
-cmake ..
-make -j$(nproc)
+cmake -S . -B build
+cmake --build build -j
+```
+
+By default, CMake tries to generate:
+
+- `pxhash_tests`
+- `pxhash_bench`
+
+The benchmark target is only generated if Google Benchmark is installed and discoverable by CMake. If it is missing, configure will print a warning and only the test target will be created.
+
+## Build options
+
+```bash
+cmake -S . -B build -DPXHASH_BUILD_TESTS=ON -DPXHASH_BUILD_BENCHMARKS=ON
+```
+
+Available options:
+
+- `PXHASH_BUILD_TESTS=ON|OFF` controls `pxhash_tests`
+- `PXHASH_BUILD_BENCHMARKS=ON|OFF` controls `pxhash_bench`
+
+Examples:
+
+Build tests only:
+
+```bash
+cmake -S . -B build -DPXHASH_BUILD_BENCHMARKS=OFF
+cmake --build build -j
+```
+
+Build benchmarks only:
+
+```bash
+cmake -S . -B build -DPXHASH_BUILD_TESTS=OFF
+cmake --build build -j
+```
+
+If CMake prints that `pxhash_bench` was skipped, install Google Benchmark first or configure with `-DPXHASH_BUILD_BENCHMARKS=OFF`.
+
+## Run tests
+
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+## Run benchmark
+
+```bash
+./build/pxhash_bench
 ```
 
 # Container / Docker
 ```bash
 docker build -t pxhash .
-docker run --rm pxhash
+docker run --rm pxhash ctest --test-dir build --output-on-failure
 ```
 
 Run the benchmark binary inside the container:

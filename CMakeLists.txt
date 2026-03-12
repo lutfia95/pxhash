@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(pxhash_bench LANGUAGES CXX)
+project(pxhash LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -8,10 +8,20 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include(CTest)
 
 option(PXHASH_BUILD_BENCHMARKS "Build benchmark executable" ON)
+option(PXHASH_BUILD_TESTS "Build test executable" ON)
 
 if (PXHASH_BUILD_BENCHMARKS)
   find_package(benchmark QUIET)
   find_package(absl QUIET)
+
+  if (benchmark_FOUND)
+    message(STATUS "Google Benchmark found: enabling pxhash_bench")
+  else()
+    message(WARNING
+      "PXHASH_BUILD_BENCHMARKS is ON, but Google Benchmark was not found. "
+      "The pxhash_bench target will not be generated. "
+      "Install Google Benchmark or reconfigure with -DPXHASH_BUILD_BENCHMARKS=OFF.")
+  endif()
 endif()
 
 if (PXHASH_BUILD_BENCHMARKS AND benchmark_FOUND)
@@ -33,10 +43,12 @@ if (PXHASH_BUILD_BENCHMARKS AND benchmark_FOUND)
   )
 endif()
 
-add_executable(pxhash_tests tests/pxhash_test.cpp)
-target_include_directories(pxhash_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_compile_options(pxhash_tests PRIVATE
-  -Wall -Wextra -Wpedantic
-)
+if (PXHASH_BUILD_TESTS)
+  add_executable(pxhash_tests tests/pxhash_test.cpp)
+  target_include_directories(pxhash_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  target_compile_options(pxhash_tests PRIVATE
+    -Wall -Wextra -Wpedantic
+  )
 
-add_test(NAME pxhash_tests COMMAND pxhash_tests)
+  add_test(NAME pxhash_tests COMMAND pxhash_tests)
+endif()
