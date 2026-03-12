@@ -37,29 +37,20 @@ cd build
 cmake ..
 make -j$(nproc)
 ```
-# Benchmarking
-```
-./pxhash_bench
 
+# Container / Docker
+```bash
+docker build -t pxhash .
+docker run --rm pxhash
 ```
-# Tuning
-## Enable AVX2 explicitly
-```
-target_compile_options(pxhash_bench PRIVATE -mavx2)
 
-```
-Or use: 
-```
--march=native
+Run the benchmark binary inside the container:
 
+```bash
+docker run --rm pxhash ./build/pxhash_bench
 ```
-## Remove RTTI / exceptions (smaller binary)
-```
--fno-exceptions
--fno-rtti
 
-```
-# Usage Example
+## Usage Example
 ```cpp
 #include <iostream>
 #include <string>
@@ -137,44 +128,27 @@ Notes:
 - This path intentionally rejects non-trivially-copyable types such as `std::string`.
 - The file is intended for use on compatible builds and architectures; it is not a cross-platform interchange format.
 
-```bash
+## Tuning
 
-            ░▒▓███████▓▒░  ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░  ░▒▓██████▓▒░   ░▒▓███████▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ 
-            ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░        ░▒▓█▓▒░░▒▓█▓▒░ 
-            ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░        ░▒▓█▓▒░░▒▓█▓▒░ 
-            ░▒▓███████▓▒░   ░▒▓██████▓▒░  ░▒▓████████▓▒░ ░▒▓████████▓▒░  ░▒▓██████▓▒░  ░▒▓████████▓▒░ 
-            ░▒▓█▓▒░        ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░        ░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ 
-            ░▒▓█▓▒░        ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░        ░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ 
-            ░▒▓█▓▒░        ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ ░▒▓███████▓▒░  ░▒▓█▓▒░░▒▓█▓▒░ 
-                                                                                                                                                                                                                                                            
-                            High-Performance Hash Table, by Ah Lu 
+Enable AVX2 explicitly:
 
-
-Running on 12 Threads
-------------------------------------------
-
-2026-02-13T15:15:14+01:00
-Running ./pxhash_bench
-Run on (12 X 3900 MHz CPU s)
-CPU Caches:
-  L1 Data 32 KiB (x6)
-  L1 Instruction 32 KiB (x6)
-  L2 Unified 512 KiB (x6)
-  L3 Unified 16384 KiB (x1)
-Load Average: 0.44, 1.13, 1.02
-***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.
-***WARNING*** Library was built as DEBUG. Timings may be affected.
---------------------------------------------------------------------
-Benchmark                          Time             CPU   Iterations
---------------------------------------------------------------------
-BM_PXHash_Insert/1000000    27190001 ns     27188908 ns           26
-BM_PXHash_Find/1000000      10375694 ns     10374461 ns           67
-BM_StdMap_Insert/1000000   196319636 ns    196251472 ns            4
-BM_StdMap_Find/1000000      24233274 ns     24232182 ns           27
-BM_AbslMap_Insert/1000000   20795273 ns     20794570 ns           34
-BM_AbslMap_Find/1000000     18180487 ns     18179385 ns           38
-
-
+```cmake
+target_compile_options(pxhash_bench PRIVATE -mavx2)
 ```
-# License
+
+Or use:
+
+```text
+-march=native
+```
+
+Remove RTTI / exceptions for a smaller binary:
+
+```text
+-fno-exceptions
+-fno-rtti
+```
+
+## License
+
 MIT
