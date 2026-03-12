@@ -4,10 +4,13 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
-#include <immintrin.h>
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
+  #include <immintrin.h>
+#endif
 
 namespace pxhash {
 
@@ -258,11 +261,17 @@ private:
     __m256i t = _mm256_set1_epi8((char)h2);
     __m256i c = _mm256_cmpeq_epi8(v, t);
     return (uint32_t)_mm256_movemask_epi8(c);
-#else
+#elif defined(__SSE2__)
     __m128i v = _mm_loadu_si128((const __m128i*)base);
     __m128i t = _mm_set1_epi8((char)h2);
     __m128i c = _mm_cmpeq_epi8(v, t);
     return (uint32_t)_mm_movemask_epi8(c);
+#else
+    uint32_t mask = 0;
+    for (size_t i = 0; i < GROUP_SIZE; ++i) {
+      if (base[i] == h2) mask |= (uint32_t{1} << i);
+    }
+    return mask;
 #endif
   }
 
@@ -273,11 +282,17 @@ private:
     __m256i t = _mm256_set1_epi8((char)EMPTY);
     __m256i c = _mm256_cmpeq_epi8(v, t);
     return (uint32_t)_mm256_movemask_epi8(c);
-#else
+#elif defined(__SSE2__)
     __m128i v = _mm_loadu_si128((const __m128i*)base);
     __m128i t = _mm_set1_epi8((char)EMPTY);
     __m128i c = _mm_cmpeq_epi8(v, t);
     return (uint32_t)_mm_movemask_epi8(c);
+#else
+    uint32_t mask = 0;
+    for (size_t i = 0; i < GROUP_SIZE; ++i) {
+      if (base[i] == EMPTY) mask |= (uint32_t{1} << i);
+    }
+    return mask;
 #endif
   }
 
